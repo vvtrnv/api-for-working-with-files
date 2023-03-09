@@ -1,12 +1,47 @@
 package com.example.cfttask.service;
 
+import com.example.cfttask.validator.Converter;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.*;
 import java.security.MessageDigest;
+import java.util.Objects;
 
 @Service
 public class FilesService {
+
+    private File convertMultipartToFile(MultipartFile multipartFile) throws IOException {
+        File file = new File(Objects.requireNonNull(multipartFile.getOriginalFilename()));
+        multipartFile.transferTo(file);
+        return file;
+    }
+
+    private void copyContent(File from, File to) throws IOException {
+        InputStream in = null;
+        OutputStream out = null;
+
+        try {
+            in = new FileInputStream(from);
+            out = new FileOutputStream(from);
+
+            byte[] buffer = new byte[1024];
+            int length;
+            while ((length = in.read(buffer)) > 0) {
+                out.write(buffer, 0, length);
+            }
+
+            in.close();
+            out.close();
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        } finally {
+            in.close();
+            out.close();
+        }
+    }
 
     /**
      * Calculate hash
@@ -47,9 +82,9 @@ public class FilesService {
 
         for (File file : files) {
             if (file.isFile()) {
-                result.append(file.getName())
+                result.append(getFileChecksum(file))
                         .append('\t')
-                        .append(getFileChecksum(file))
+                        .append(file.getName())
                         .append('\n');
             }
         }
@@ -68,43 +103,53 @@ public class FilesService {
         return findFile;
     }
 
-    public File putFileToPath(File newFile, String path) {
-        File findFile = new File(path + '/' + newFile.getName());
+    public boolean putFileToPath(MultipartFile multipartFile, String path){
+        File findFile = new File(path + '/' + multipartFile.getOriginalFilename());
         if (findFile.exists()) {
             throw new IllegalArgumentException("The file already exists");
         }
         if (!findFile.isFile()) {
-            throw new IllegalArgumentException("The received data is not a file)");
-        }
-        return findFile;
-    }
-
-    public void updateFile(File updatedFile, String path) {
-        File fileToUpdate = new File(path + '/' + updatedFile.getName());
-        if (!updatedFile.exists() || !updatedFile.isFile()) {
-            // #TODO throw exception. file not found
-        }
-        if (getFileChecksum(updatedFile).equals(getFileChecksum(fileToUpdate))) {
-            // #TODO throw exception. file without changes
+            throw new IllegalArgumentException("The name of the file is repeated with name of the directory");
         }
 
         try {
-            FileInputStream inputStream = new FileInputStream(updatedFile);
-            FileOutputStream outputStream = new FileOutputStream(fileToUpdate);
+            File uploadedFile = convertMultipartToFile(multipartFile);
+            copyContent(uploadedFile, findFile);
+        } catch (IOException ex) {
+            throw new IllegalArgumentException("Error when copy content");
+        }
 
-            byte[] buffer = new byte[1024];
-            int length;
-            while ((length = inputStream.read(buffer)) > 0) {
-                outputStream.write(buffer, 0, length);
+        return true;
+    }
+
+    public boolean updateFile(MultipartFile multipartFile, String path) {
+        try {
+            File updatedFile = convertMultipartToFile(multipartFile);
+            File fileToUpdate = new File(path + '/' + updatedFile.getName());
+
+            if (!fileToUpdate.exists() || !fileToUpdate.isFile()) {
+                throw new IllegalArgumentException("Error when update file");
+            }
+            if (getFileChecksum(updatedFile).equals(getFileChecksum(fileToUpdate))) {
+                return false;
             }
 
-            inputStream.close();
-            outputStream.close();
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+            copyContent(updatedFile, fileToUpdate);
+            return true;
+        } catch (IOException ex) {
+            throw new IllegalArgumentException("Error when update the file");
         }
+
+    }
+
+    public boolean deleteFile(String filename, String path) {
+        File toDeleteFile = new File(path + '/' + filename);
+
+        if (!toDeleteFile.delete()) {
+            throw new IllegalArgumentException("Error when delete file");
+        }
+
+        return true;
     }
 
 }
