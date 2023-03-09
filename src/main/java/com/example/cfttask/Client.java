@@ -47,9 +47,7 @@ public class Client {
             case 4:
                 System.out.println("Введите имя файла:");
                 fileName = scanner.nextLine();
-                System.out.println("Введите путь к файлу на клиенте:");
-//                filePath = scanner.nextLine();
-//                updateFile(endpointUrl, fileName, filePath);
+                updateFile(endpointUrl, fileName);
                 break;
             case 5:
                 System.out.println("Введите имя файла:");
@@ -149,16 +147,15 @@ public class Client {
 
 
     private static void updateFile(String endpointUrl,
-                                   String fileName,
-                                   String filePath) throws IOException {
-        String fileUrl = String.format(FILE_URL_FORMAT, endpointUrl, fileName);
+                                   String pathToFile) throws IOException {
+        String fileUrl = endpointUrl;
         URL url = new URL(fileUrl);
         HttpURLConnection con = (HttpURLConnection) url.openConnection();
         con.setRequestMethod("POST");
         con.setDoOutput(true);
 
         OutputStream outputStream = con.getOutputStream();
-        FileInputStream inputStream = new FileInputStream(filePath);
+        FileInputStream inputStream = new FileInputStream(pathToFile);
         byte[] buffer = new byte[4096];
         int bytesRead;
         while ((bytesRead = inputStream.read(buffer)) != -1) {
@@ -170,7 +167,10 @@ public class Client {
         int responseCode = con.getResponseCode();
         if (responseCode == HttpURLConnection.HTTP_OK) {
             System.out.println("Файл успешно обновлен на сервере.");
-        } else {
+        } else if (responseCode == HttpURLConnection.HTTP_NOT_MODIFIED) {
+            System.out.println("Не требуется изменений");
+        }
+        else {
             System.out.println("Не удалось обновить файл на сервере. Код ошибки: " + responseCode);
         }
 

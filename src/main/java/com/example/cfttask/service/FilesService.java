@@ -1,13 +1,12 @@
 package com.example.cfttask.service;
 
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.io.*;
 import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Objects;
 
 @Service
 public class FilesService {
@@ -24,7 +23,7 @@ public class FilesService {
         }
         outputStream.close();
         fileContent.close();
-        System.out.println("createFileFromRequest\t OKOKOK");
+
         return new File(pathToFile);
     }
 
@@ -61,23 +60,17 @@ public class FilesService {
      */
     private String getFileChecksum(File file) {
         try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            FileInputStream fis = new FileInputStream(file);
-            byte[] byteArray = new byte[1024];
-            int bytesCount;
-            while ((bytesCount = fis.read(byteArray)) != -1) {
-                digest.update(byteArray, 0, bytesCount);
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            byte[] fileBytes = Files.readAllBytes(file.toPath());
+            byte[] hashBytes = md.digest(fileBytes);
+            StringBuffer sb = new StringBuffer("");
+            for (int i = 0; i < hashBytes.length; i++) {
+                sb.append(Integer.toString((hashBytes[i] & 0xff) + 0x100, 16).substring(1));
             }
-            fis.close();
-            byte[] bytes = digest.digest();
-            StringBuilder sb = new StringBuilder();
-            for (byte b : bytes) {
-                sb.append(String.format("%02x", b));
-            }
+
             return sb.toString();
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
+        } catch (NoSuchAlgorithmException | IOException e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -115,7 +108,7 @@ public class FilesService {
         return findFile;
     }
 
-    public boolean putFileToPath(InputStream contentFile, String filename, long sizeOfContent, String path){
+    public boolean putFileToPath(InputStream contentFile, String filename, String path){
         String pathToFile = path + '/' + filename;
         System.out.println(pathToFile);
         File findFile = new File(pathToFile);
@@ -123,10 +116,6 @@ public class FilesService {
             System.out.println("COMING TO EXISTS");
             throw new IllegalArgumentException("The file already exists");
         }
-//        if (!findFile.isFile()) {
-//            System.out.println("COMING TO NOT FILE");
-//            throw new IllegalArgumentException("The name of the file is repeated with name of the directory");
-//        }
 
         try {
             File uploadedFile = createFileFromRequest(contentFile, pathToFile);
@@ -137,25 +126,29 @@ public class FilesService {
         return true;
     }
 
-//    public boolean updateFile(MultipartFile multipartFile, String path) {
-//        try {
-//            File updatedFile = convertMultipartToFile(multipartFile);
-//            File fileToUpdate = new File(path + '/' + updatedFile.getName());
-//
-//            if (!fileToUpdate.exists() || !fileToUpdate.isFile()) {
-//                throw new IllegalArgumentException("Error when update file");
-//            }
-//            if (getFileChecksum(updatedFile).equals(getFileChecksum(fileToUpdate))) {
-//                return false;
-//            }
-//
-//            copyContent(updatedFile, fileToUpdate);
-//            return true;
-//        } catch (IOException ex) {
-//            throw new IllegalArgumentException("Error when update the file");
-//        }
-//
-//    }
+    public boolean updateFile(InputStream contentFile, String filename, String path) {
+        try {
+            String pathToFile = path + '/' + filename;
+            File fileToUpdate = new File(pathToFile);
+            File updatedFile = createFileFromRequest(contentFile, path + "/tempcatalog/" + filename);
+
+            if (!fileToUpdate.exists() || !fileToUpdate.isFile()) {
+                throw new IllegalArgumentException("Error when update file");
+            }
+            System.out.println("OLD:\t" + getFileChecksum(fileToUpdate));
+            System.out.println("UPDATED:\t" + getFileChecksum(updatedFile));
+            if (Objects.equals(getFileChecksum(updatedFile), getFileChecksum(fileToUpdate))) {
+                return false;
+            }
+
+            copyContent(updatedFile, fileToUpdate);
+//            updatedFile.delete();
+            return true;
+        } catch (IOException ex) {
+            throw new IllegalArgumentException("Error when update the file");
+        }
+
+    }
 
     public boolean deleteFile(String filename, String path) {
         File toDeleteFile = new File(path + '/' + filename);

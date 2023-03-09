@@ -45,17 +45,14 @@ public class ControllerFiles {
     @PutMapping("/files")
     public ResponseEntity<String> putFileToServer(HttpServletRequest request) {
         String fileName = request.getHeader("fileName");
-        long fileSize = Long.parseLong(request.getHeader("fileSize"));
-        System.out.println(fileName + " " + fileSize);
 
         try {
-            if (filesService.putFileToPath(request.getInputStream(), fileName, fileSize, PATH)) {
+            if (filesService.putFileToPath(request.getInputStream(), fileName, PATH)) {
                 return ResponseEntity.status(HttpStatus.OK)
                         .body("OK");
             }
         } catch (IOException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body("NOT OK");
+            throw new IllegalArgumentException("PUT. Error when checking input stream");
         }
 
 
@@ -63,15 +60,23 @@ public class ControllerFiles {
                 .body("NOT OK");
     }
 
-//    @PostMapping("/files")
-//    public ResponseEntity<String> updateTheFile(@RequestParam(value="file") MultipartFile updatedFile) {
-//        if (filesService.updateFile(updatedFile, PATH)) {
-//            return ResponseEntity.status(HttpStatus.OK)
-//                    .body("OK");
-//        }
-//        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-//                .body("NOT OK");
-//    }
+    @PostMapping("/files")
+    public ResponseEntity<String> updateTheFile(HttpServletRequest request) {
+        String fileName = request.getHeader("fileName");
+
+        try {
+            if (filesService.updateFile(request.getInputStream(), fileName, PATH)) {
+                return ResponseEntity.status(HttpStatus.OK)
+                        .body("OK");
+            }
+        } catch (IOException e) {
+            throw new IllegalArgumentException("POST. Error when checking input stream");
+        }
+
+
+        return ResponseEntity.status(HttpStatus.NOT_MODIFIED)
+                .body("No changes required");
+    }
 
     @DeleteMapping("/files")
     public ResponseEntity<String> deleteTheFile(@RequestParam(value = "filename") String filename) {
