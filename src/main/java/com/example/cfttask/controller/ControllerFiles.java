@@ -2,6 +2,7 @@ package com.example.cfttask.controller;
 
 
 import com.example.cfttask.service.FilesService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.FileSystemResource;
@@ -33,8 +34,7 @@ public class ControllerFiles {
     }
 
     @GetMapping("/files")
-    public ResponseEntity<Resource> getFileByName(@RequestParam(value = "filename") String filename,
-                                                  @RequestParam(value = "clientpath") String clientPath) {
+    public ResponseEntity<Resource> getFileByName(@RequestParam(value = "filename") String filename) {
         Resource resource = new FileSystemResource(filesService.getFileByName(filename, PATH));
         MediaType mediaType = MediaTypeFactory.getMediaType(resource).orElse(MediaType.APPLICATION_OCTET_STREAM);
         return ResponseEntity.ok()
@@ -43,26 +43,35 @@ public class ControllerFiles {
     }
 
     @PutMapping("/files")
-    public ResponseEntity<String> putFileToServer(@RequestParam(value = "file") MultipartFile newFile) {
-        if (filesService.putFileToPath(newFile, PATH)) {
-            return ResponseEntity.status(HttpStatus.OK)
-                    .body("OK");
+    public ResponseEntity<String> putFileToServer(HttpServletRequest request) {
+        String fileName = request.getHeader("fileName");
+        long fileSize = Long.parseLong(request.getHeader("fileSize"));
+        System.out.println(fileName + " " + fileSize);
+
+        try {
+            if (filesService.putFileToPath(request.getInputStream(), fileName, fileSize, PATH)) {
+                return ResponseEntity.status(HttpStatus.OK)
+                        .body("OK");
+            }
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("NOT OK");
         }
+
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body("NOT OK");
     }
 
-
-    @PostMapping("/files")
-    public ResponseEntity<String> updateTheFile(@RequestParam(value="file") MultipartFile updatedFile) {
-        if (filesService.updateFile(updatedFile, PATH)) {
-            return ResponseEntity.status(HttpStatus.OK)
-                    .body("OK");
-        }
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body("NOT OK");
-    }
+//    @PostMapping("/files")
+//    public ResponseEntity<String> updateTheFile(@RequestParam(value="file") MultipartFile updatedFile) {
+//        if (filesService.updateFile(updatedFile, PATH)) {
+//            return ResponseEntity.status(HttpStatus.OK)
+//                    .body("OK");
+//        }
+//        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+//                .body("NOT OK");
+//    }
 
     @DeleteMapping("/files")
     public ResponseEntity<String> deleteTheFile(@RequestParam(value = "filename") String filename) {

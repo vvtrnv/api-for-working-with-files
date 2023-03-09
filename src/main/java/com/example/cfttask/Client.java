@@ -1,8 +1,12 @@
 package com.example.cfttask;
 
+import org.springframework.web.util.UriBuilder;
+
 import java.io.*;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
+import java.nio.file.Files;
 import java.util.Properties;
 import java.util.Scanner;
 
@@ -10,6 +14,8 @@ public class Client {
 
     private static final String ENDPOINT_URL = "http://%s:%d/files";
     private static final String FILE_URL_FORMAT = "http://%s:%d/files/%s";
+
+
 
     public static void printMenu() {
         System.out.println("Выберите действие:");
@@ -36,16 +42,14 @@ public class Client {
             case 3:
                 System.out.println("Введите имя файла:");
                 fileName = scanner.nextLine();
-                System.out.println("Введите путь к файлу на клиенте:");
-                String filePath = scanner.nextLine();
-                uploadFile(endpointUrl, fileName, filePath);
+                uploadFile(endpointUrl, fileName);
                 break;
             case 4:
                 System.out.println("Введите имя файла:");
                 fileName = scanner.nextLine();
                 System.out.println("Введите путь к файлу на клиенте:");
-                filePath = scanner.nextLine();
-                updateFile(endpointUrl, fileName, filePath);
+//                filePath = scanner.nextLine();
+//                updateFile(endpointUrl, fileName, filePath);
                 break;
             case 5:
                 System.out.println("Введите имя файла:");
@@ -80,14 +84,15 @@ public class Client {
             }
             in.close();
         }
-
+        connection.disconnect();
         return sb.toString();
     }
 
     private static void getFile(String endpointUrl,
                                 String fileName,
                                 String path) throws IOException{
-        String fileUrl = String.format(FILE_URL_FORMAT, endpointUrl, fileName);
+        String fileUrl = endpointUrl + "?filename=" + fileName;
+
         URL url = new URL(fileUrl);
         HttpURLConnection con = (HttpURLConnection) url.openConnection();
         con.setRequestMethod("GET");
@@ -95,46 +100,53 @@ public class Client {
         int responseCode = con.getResponseCode();
         if (responseCode == HttpURLConnection.HTTP_OK) {
             InputStream inputStream = con.getInputStream();
-            FileOutputStream outputStream = new FileOutputStream(path);
+            FileOutputStream outputStream = new FileOutputStream(path + '/' + fileName);
             byte[] buffer = new byte[4096];
             int bytesRead;
             while ((bytesRead = inputStream.read(buffer)) != -1) {
                 outputStream.write(buffer, 0, bytesRead);
+
             }
             outputStream.close();
             inputStream.close();
-            System.out.println("Файл успешно записан на клиент.");
+            System.out.println("OK");
         } else {
             System.out.println("Не удалось получить файл. Код ошибки: " + responseCode);
         }
+        con.disconnect();
     }
 
     private static void uploadFile(String endpointUrl,
-                                   String fileName,
-                                   String filePath) throws IOException {
-        String fileUrl = String.format(FILE_URL_FORMAT, endpointUrl, fileName);
+                                   String fileName) throws IOException {
+        String fileUrl = endpointUrl;
         URL url = new URL(fileUrl);
         HttpURLConnection con = (HttpURLConnection) url.openConnection();
         con.setRequestMethod("PUT");
         con.setDoOutput(true);
 
+        con.setRequestProperty("Content-Type", "application/octet-stream");
+        con.setRequestProperty("Content-Disposition", "attachment; filename=\"" + fileName + "\"");
+
+        File file = new File(fileName);
+        byte[] fileContent = Files.readAllBytes(file.toPath());
+
+        con.setRequestProperty("fileName", fileName);
+        con.setRequestProperty("fileSize", String.valueOf(fileContent.length));
+
         OutputStream outputStream = con.getOutputStream();
-        FileInputStream inputStream = new FileInputStream(filePath);
-        byte[] buffer = new byte[4096];
-        int bytesRead;
-        while ((bytesRead = inputStream.read(buffer)) != -1) {
-            outputStream.write(buffer, 0, bytesRead);
-        }
+        outputStream.write(fileContent);
+        outputStream.flush();
         outputStream.close();
-        inputStream.close();
 
         int responseCode = con.getResponseCode();
         if (responseCode == HttpURLConnection.HTTP_OK) {
-            System.out.println("Файл успешно записан на сервер.");
+            System.out.println("OK");
         } else {
             System.out.println("Не удалось записать файл на сервер. Код ошибки: " + responseCode);
         }
+        con.disconnect();
     }
+
 
     private static void updateFile(String endpointUrl,
                                    String fileName,
@@ -166,7 +178,17 @@ public class Client {
 
     private static void deleteFile(String endpointUrl,
                                    String fileName) throws IOException {
-
+        String fileUrl = endpointUrl + "?filename=" + fileName;
+        URL url = new URL(fileUrl);
+        HttpURLConnection con = (HttpURLConnection) url.openConnection();
+        con.setRequestMethod("DELETE");
+        int responseCode = con.getResponseCode();
+        if (responseCode == HttpURLConnection.HTTP_OK) {
+            System.out.println("Файл " + fileName + " успешно удален");
+        } else {
+            System.out.println("Не удалось удалить файл " + fileName + ", код ответа: " + responseCode);
+        }
+        con.disconnect();
     }
 
     public static void main(String[] args) {

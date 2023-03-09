@@ -1,4 +1,4 @@
-package com.example.cfttask.validator;
+package com.example.cfttask.service.validator;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
