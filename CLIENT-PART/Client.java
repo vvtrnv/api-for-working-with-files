@@ -2,6 +2,7 @@ import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.file.Files;
+import java.util.Arrays;
 import java.util.Properties;
 import java.util.Scanner;
 
@@ -122,7 +123,7 @@ public class Client {
         con.setDoOutput(true);
 
         File file = new File(pathToFile);
-        System.out.println(file.getName());
+
         if (!checkingIsFile(file)) {
             System.out.println("Проверьте корректность. Указанного файла не существует");
             return;
@@ -213,18 +214,12 @@ public class Client {
         Properties props = new Properties();
         try {
             // Load props and command line
-            if (args.length > 0) {
-                for (String arg : args) {
-                    String[] keyValue = arg.split("=");
-                    if (keyValue.length == 2) {
-                        props.setProperty("address", keyValue[0]);
-                        props.setProperty("port", keyValue[1]);
-                    }
-                }
+            if (args.length == 2) {
+                props.setProperty("address", args[0]);
+                props.setProperty("port", args[1]);
             } else {
                 props.load(new FileInputStream("config.properties"));
             }
-
             Scanner scanner = new Scanner(System.in);
 
             // Forming url
