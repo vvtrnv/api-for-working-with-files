@@ -7,7 +7,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Objects;
 
 @Service
 public class FilesService {
@@ -25,32 +24,6 @@ public class FilesService {
         fileContent.close();
 
         return new File(pathToFile);
-    }
-
-    private void copyContent(File from, File to) throws IOException {
-        InputStream in = null;
-        OutputStream out = null;
-
-        try {
-            in = new FileInputStream(from);
-            out = new FileOutputStream(to);
-
-            byte[] buffer = new byte[1024];
-            int length;
-            while ((length = in.read(buffer)) > 0) {
-                out.write(buffer, 0, length);
-            }
-
-            in.close();
-            out.close();
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } finally {
-            in.close();
-            out.close();
-        }
     }
 
     private String getHashOfArrBytes(byte[] content) {
