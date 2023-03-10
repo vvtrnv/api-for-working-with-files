@@ -153,16 +153,31 @@ public class Client {
         HttpURLConnection con = (HttpURLConnection) url.openConnection();
         con.setRequestMethod("POST");
         con.setDoOutput(true);
+//        con.setRequestProperty("fileName", pathToFile);
+//        con.setRequestProperty("fileSize", String.valueOf(fileContent.length));
+//        OutputStream outputStream = con.getOutputStream();
+//        FileInputStream inputStream = new FileInputStream(pathToFile);
+//        byte[] buffer = new byte[4096];
+//        int bytesRead;
+//        while ((bytesRead = inputStream.read(buffer)) != -1) {
+//            outputStream.write(buffer, 0, bytesRead);
+//        }
+//        outputStream.close();
+//        inputStream.close();
+
+        con.setRequestProperty("Content-Type", "application/octet-stream");
+        con.setRequestProperty("Content-Disposition", "attachment; filename=\"" + pathToFile + "\"");
+
+        File file = new File(pathToFile);
+        byte[] fileContent = Files.readAllBytes(file.toPath());
+
+        con.setRequestProperty("fileName", pathToFile);
+        con.setRequestProperty("fileSize", String.valueOf(fileContent.length));
 
         OutputStream outputStream = con.getOutputStream();
-        FileInputStream inputStream = new FileInputStream(pathToFile);
-        byte[] buffer = new byte[4096];
-        int bytesRead;
-        while ((bytesRead = inputStream.read(buffer)) != -1) {
-            outputStream.write(buffer, 0, bytesRead);
-        }
+        outputStream.write(fileContent);
+        outputStream.flush();
         outputStream.close();
-        inputStream.close();
 
         int responseCode = con.getResponseCode();
         if (responseCode == HttpURLConnection.HTTP_OK) {
