@@ -1,69 +1,65 @@
+import picocli.CommandLine;
+
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.file.Files;
-import java.util.Arrays;
 import java.util.Properties;
-import java.util.Scanner;
 
-public class Client {
-    private static final String ENDPOINT_URL = "http://%s:%d/files";
-    private static final String FILE_URL_FORMAT = "http://%s:%d/files/%s";
+@CommandLine.Command(
+        name = "Client",
+        description = "The client part for work with files on server"
+)
+public class Client implements Runnable{
 
-    private static boolean checkingIsFile(File file) {
+    @CommandLine.Option(names = "--ip",
+        description = "Server IP address")
+    private String addressFromCMD;
+
+    @CommandLine.Option(names = "--port",
+            description = "Server PORT")
+    private String portFromCMD;
+
+    @CommandLine.Option(names = "--all",
+        description = "List all files on server")
+    private boolean isGetAllFilesFromServer;
+
+    @CommandLine.Option(names = "--get",
+        description = "Get file from server by filename. Required a -f and path to file on server.")
+    private boolean isGetOneFileFromServer;
+
+    @CommandLine.Option(names = "--put",
+            description = "Put file to server. Required a -f and path to file on client.")
+    private boolean isUploadFileToServer;
+
+    @CommandLine.Option(names = "--update",
+            description = "Update file on server. Required a -f and path to file on client.")
+    private boolean isUpdateFileOnServer;
+
+    @CommandLine.Option(names = "--delete",
+            description = "Delete file on server. Required a -f and path to file on server.")
+    private boolean isDeleteFileOnServer;
+
+    @CommandLine.Option(names={"-f", "--file"},
+        description = "Path to file and filename. Example: /home/user/test.txt")
+    private String filenameFromCMD;
+
+    @CommandLine.Option(names = {"-d", "--directory"},
+        description = "Directory to download the file to. Only for --get.")
+    private String pathToDownloadToClient;
+
+
+    private final String ENDPOINT_URL = "http://%s:%d/files";
+    private String endpointUrl;
+
+    private boolean checkingIsFile(File file) {
         if (!file.isFile()) {
             return false;
         }
         return true;
     }
 
-    public static void printMenu() {
-        System.out.println("Выберите действие:");
-        System.out.println("1. Получить список файлов");
-        System.out.println("2. Получить файл с сервера");
-        System.out.println("3. Записать на сервер файл");
-        System.out.println("4. Обновить на сервере файл");
-        System.out.println("5. Удалить на сервере файл");
-        System.out.println("0. Выход");
-    }
-
-    public static void choiceFromMenu(int action, Scanner scanner, String endpointUrl) throws IOException {
-        switch (action) {
-            case 1:
-                System.out.println(getAllFiles(endpointUrl + "/all"));
-                break;
-            case 2:
-                System.out.println("Введите имя файла:");
-                String fileName = scanner.nextLine();
-                System.out.println("Введите путь для сохранения файла:");
-                String path = scanner.nextLine();
-                getFile(endpointUrl, fileName, path);
-                break;
-            case 3:
-                System.out.println("Введите имя файла:");
-                fileName = scanner.nextLine();
-                uploadFile(endpointUrl, fileName);
-                break;
-            case 4:
-                System.out.println("Введите имя файла:");
-                fileName = scanner.nextLine();
-                updateFile(endpointUrl, fileName);
-                break;
-            case 5:
-                System.out.println("Введите имя файла:");
-                fileName = scanner.nextLine();
-                deleteFile(endpointUrl, fileName);
-                break;
-            case 0:
-                System.out.println("До связи!");
-                System.exit(0);
-                break;
-            default:
-                System.out.println("Неверный выбор действия.");
-        }
-    }
-
-    private static String getAllFiles(String endpointUrl) throws IOException {
+    private String getAllFiles(String endpointUrl) throws IOException {
         URL url = new URL(endpointUrl);
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setRequestMethod("GET");
@@ -86,10 +82,8 @@ public class Client {
         return sb.toString();
     }
 
-    private static void getFile(String endpointUrl,
-                                String fileName,
-                                String path) throws IOException{
-        String fileUrl = endpointUrl + "?filename=" + fileName;
+    private void getFile(String endpointUrl) throws IOException{
+        String fileUrl = endpointUrl + "?filename=" + filenameFromCMD;
 
         URL url = new URL(fileUrl);
         HttpURLConnection con = (HttpURLConnection) url.openConnection();
@@ -98,7 +92,7 @@ public class Client {
         int responseCode = con.getResponseCode();
         if (responseCode == HttpURLConnection.HTTP_OK) {
             InputStream inputStream = con.getInputStream();
-            FileOutputStream outputStream = new FileOutputStream(path + '/' + fileName);
+            FileOutputStream outputStream = new FileOutputStream(pathToDownloadToClient + '/' + filenameFromCMD);
             byte[] buffer = new byte[4096];
             int bytesRead;
             while ((bytesRead = inputStream.read(buffer)) != -1) {
@@ -114,15 +108,14 @@ public class Client {
         con.disconnect();
     }
 
-    private static void uploadFile(String endpointUrl,
-                                   String pathToFile) throws IOException {
+    private void uploadFile(String endpointUrl) throws IOException {
         String fileUrl = endpointUrl;
         URL url = new URL(fileUrl);
         HttpURLConnection con = (HttpURLConnection) url.openConnection();
         con.setRequestMethod("PUT");
         con.setDoOutput(true);
 
-        File file = new File(pathToFile);
+        File file = new File(filenameFromCMD);
 
         if (!checkingIsFile(file)) {
             System.out.println("Проверьте корректность. Указанного файла не существует");
@@ -150,16 +143,14 @@ public class Client {
         con.disconnect();
     }
 
-
-    private static void updateFile(String endpointUrl,
-                                   String pathToFile) throws IOException {
+    private void updateFile(String endpointUrl) throws IOException {
         String fileUrl = endpointUrl;
         URL url = new URL(fileUrl);
         HttpURLConnection con = (HttpURLConnection) url.openConnection();
         con.setRequestMethod("POST");
         con.setDoOutput(true);
 
-        File file = new File(pathToFile);
+        File file = new File(filenameFromCMD);
 
         if (!checkingIsFile(file)) {
             System.out.println("Проверьте корректность. Указанного файла не существует");
@@ -190,14 +181,13 @@ public class Client {
 
     }
 
-    private static void deleteFile(String endpointUrl,
-                                   String fileName) throws IOException {
-        if (fileName.contains("../")) {
-            System.out.println("Параметр " + fileName + " содержит \'../\', что не допустимо.");
+    private void deleteFile(String endpointUrl) throws IOException {
+        if (filenameFromCMD.contains("../")) {
+            System.out.println("Параметр " + filenameFromCMD + " содержит \'../\', что не допустимо.");
             return;
         }
 
-        String fileUrl = endpointUrl + "?filename=" + fileName;
+        String fileUrl = endpointUrl + "?filename=" + filenameFromCMD;
         URL url = new URL(fileUrl);
         HttpURLConnection con = (HttpURLConnection) url.openConnection();
         con.setRequestMethod("DELETE");
@@ -205,41 +195,50 @@ public class Client {
         if (responseCode == HttpURLConnection.HTTP_OK) {
             System.out.println("OK");
         } else {
-            System.out.println("Не удалось удалить файл " + fileName + ", код ответа: " + responseCode);
+            System.out.println("Не удалось удалить файл " + filenameFromCMD + ", код ответа: " + responseCode);
         }
         con.disconnect();
     }
 
     public static void main(String[] args) {
-        Properties props = new Properties();
+        int exitCode = new CommandLine(new Client()).execute(args);
+        System.exit(exitCode);
+    }
+
+    @Override
+    public void run() {
         try {
             // Load props and command line
-            if (args.length == 2) {
-                props.setProperty("address", args[0]);
-                props.setProperty("port", args[1]);
+            Properties props = new Properties();
+
+            if (addressFromCMD != null && portFromCMD != null) {
+                props.setProperty("address", addressFromCMD);
+                props.setProperty("port", portFromCMD);
             } else {
                 props.load(new FileInputStream("config.properties"));
             }
-            Scanner scanner = new Scanner(System.in);
 
             // Forming url
             String address = props.getProperty("address");
             int port = Integer.parseInt(props.getProperty("port"));
-            String endpointUrl = String.format(ENDPOINT_URL, address, port);
+            endpointUrl = String.format(ENDPOINT_URL, address, port);
             System.out.println(endpointUrl);
-            while (true) {
-                printMenu();
 
-                int action = scanner.nextInt();
-                scanner.nextLine();
-
-                choiceFromMenu(action, scanner, endpointUrl);
+            if (isGetAllFilesFromServer) {
+                System.out.println("Files on server:");
+                System.out.println(getAllFiles(endpointUrl + "/all"));
+            } else if (isGetOneFileFromServer && filenameFromCMD != null && pathToDownloadToClient != null) {
+                getFile(endpointUrl);
+            } else if (isUploadFileToServer && filenameFromCMD != null) {
+                uploadFile(endpointUrl);
+            } else if (isUpdateFileOnServer && filenameFromCMD != null) {
+                updateFile(endpointUrl);
+            } else if (isDeleteFileOnServer && filenameFromCMD != null) {
+                deleteFile(endpointUrl);
             }
-
-        } catch (IOException e) {
+        } catch (IOException ex) {
             System.out.println("Error on client");
-            e.printStackTrace();
+            ex.printStackTrace();
         }
     }
-
 }
